@@ -356,15 +356,9 @@
 
   <!-- SETTINGS -->
   <div class="pane" id="pane-settings">
-    <div class="setup-card" id="script-setup">
-      <div class="setup-title">⚙️ Google Sheets Connection</div>
-      <p style="font-size:13px; color:var(--amber-text); margin-bottom:12px; line-height:1.5;">Paste your Google Apps Script URL below to enable cloud sync. Data will save to your Google Sheet automatically.</p>
-      <input class="setup-input" type="url" id="script-url-input" placeholder="https://script.google.com/macros/s/...">
-      <button class="btn btn-primary" onclick="saveScriptUrl()" style="margin-bottom:0;">Save & connect</button>
-    </div>
     <div class="card">
       <div class="section-title">Connection status</div>
-      <div class="row"><div class="row-label">Google Sheets</div><span id="conn-status" style="font-size:13px; font-weight:600; color:var(--text3);">Not configured</span></div>
+      <div class="row"><div class="row-label">Cloudflare D1</div><span id="conn-status" style="font-size:13px; font-weight:600; color:var(--green);">● Connected</span></div>
       <div class="row"><div class="row-label">Last synced</div><span id="last-sync" style="font-size:13px; color:var(--text3);">Never</span></div>
     </div>
     <div class="card">
@@ -373,7 +367,7 @@
       <div class="row"><div class="row-label">Total hours</div><span id="data-hours" style="font-weight:600;">0</span></div>
       <div class="row"><div class="row-label">Total earned (gross)</div><span id="data-total" style="font-weight:600; color:var(--green);">£0</span></div>
     </div>
-    <button class="btn btn-secondary" onclick="forceSyncFromSheet()">🔄 Re-sync from Google Sheet</button>
+    <button class="btn btn-secondary" onclick="forceSyncFromWorker()">🔄 Re-sync from Cloudflare</button>
     <button class="btn btn-danger" onclick="clearData()">🗑️ Clear all local data</button>
   </div>
 </div>
@@ -384,16 +378,15 @@
 // ─────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────
-const APP_PASSWORD = 'monica2024'; // Must match Apps Script PASSWORD constant
+const APP_PASSWORD = 'monica2024';
+const WORKER_URL   = 'https://clinic-tracker.mohit-chimote.workers.dev';
 const CACHE_KEY    = 'clinic_cache_v3';
-const SCRIPT_KEY   = 'clinic_script_url';
 const SESSION_KEY  = 'clinic_session';
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-let db          = {};          // in-memory data store (mirrors sheet)
-let scriptUrl   = '';
+let db          = {};
 let currentDate = new Date();
 let dayState    = { hours:0, t6:0, t3:0, cons:0, bonus:false, indem:true, gdc:true };
 let lastSyncTime = null;
@@ -424,67 +417,40 @@ if (sessionStorage.getItem(SESSION_KEY)) {
 // INIT
 // ─────────────────────────────────────────────
 function init() {
-  // Load script URL
-  scriptUrl = localStorage.getItem(SCRIPT_KEY) || '';
-  if (scriptUrl) {
-    document.getElementById('script-url-input').value = scriptUrl;
-    updateConnStatus(true);
-  }
-  // Load cached data first (instant)
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
     try { db = JSON.parse(cached); } catch(e) { db = {}; }
   }
   loadDayUI();
   updateDataSummary();
-  // Then sync from sheet if configured
-  if (scriptUrl) syncFromSheet();
+  syncFromWorker();
 }
 
 // ─────────────────────────────────────────────
-// API CALLS  (JSONP — bypasses CORS entirely)
+// API CALLS
 // ─────────────────────────────────────────────
-function jsonp(url) {
-  return new Promise((resolve, reject) => {
-    const cbName = '_cb' + Date.now() + Math.random().toString(36).slice(2);
-    const script = document.createElement('script');
-    window[cbName] = function(data) {
-      delete window[cbName];
-      document.head.removeChild(script);
-      resolve(data);
-    };
-    script.onerror = function() {
-      delete window[cbName];
-      document.head.removeChild(script);
-      reject(new Error('Network error'));
-    };
-    url.searchParams.set('callback', cbName);
-    script.src = url.toString();
-    document.head.appendChild(script);
-  });
-}
-
 async function apiGet(params) {
-  if (!scriptUrl) return null;
-  const url = new URL(scriptUrl);
+  const url = new URL(WORKER_URL);
   url.searchParams.set('pwd', APP_PASSWORD);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  return jsonp(url);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
 }
 
 async function apiPost(body) {
-  if (!scriptUrl) return null;
-  const url = new URL(scriptUrl);
-  url.searchParams.set('pwd', APP_PASSWORD);
-  Object.entries(body).forEach(([k, v]) => {
-    url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pwd: APP_PASSWORD, ...body }),
   });
-  return jsonp(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
 }
 
-async function syncFromSheet() {
+async function syncFromWorker() {
   setSyncBadge('syncing');
-  showLoading('Syncing with Google Sheets…');
+  showLoading('Syncing…');
   try {
     const result = await apiGet({ action: 'getAll' });
     if (result && result.data) {
@@ -505,31 +471,9 @@ async function syncFromSheet() {
   hideLoading();
 }
 
-async function forceSyncFromSheet() {
-  await syncFromSheet();
-  toast('✓ Synced from Google Sheet');
-}
-
-// ─────────────────────────────────────────────
-// SETTINGS
-// ─────────────────────────────────────────────
-function saveScriptUrl() {
-  const val = document.getElementById('script-url-input').value.trim();
-  if (!val.startsWith('https://script.google.com')) {
-    toast('⚠️ Please paste a valid Apps Script URL');
-    return;
-  }
-  scriptUrl = val;
-  localStorage.setItem(SCRIPT_KEY, scriptUrl);
-  updateConnStatus(true);
-  syncFromSheet();
-  toast('✓ Connected — syncing now…');
-}
-
-function updateConnStatus(connected) {
-  const el = document.getElementById('conn-status');
-  el.textContent = connected ? '● Connected' : '○ Not configured';
-  el.style.color = connected ? 'var(--green)' : 'var(--text3)';
+async function forceSyncFromWorker() {
+  await syncFromWorker();
+  toast('✓ Synced from Cloudflare');
 }
 
 // ─────────────────────────────────────────────
@@ -624,25 +568,20 @@ async function saveDay() {
     end:   document.getElementById('end-time').value,
     total: r.total
   };
-  // Save locally immediately
   db[key] = record;
   localStorage.setItem(CACHE_KEY, JSON.stringify(db));
   document.getElementById('delete-btn').style.display = 'block';
   updateDataSummary();
-  toast('✓ Saved locally');
-  // Then push to sheet
-  if (scriptUrl) {
-    setSyncBadge('syncing');
-    try {
-      await apiPost({ action: 'save', record });
-      lastSyncTime = new Date();
-      document.getElementById('last-sync').textContent = fmtTime(lastSyncTime);
-      setSyncBadge('ok');
-      toast('✓ Saved & synced to Google Sheet');
-    } catch(e) {
-      setSyncBadge('error');
-      toast('✓ Saved locally — sheet sync failed');
-    }
+  setSyncBadge('syncing');
+  try {
+    await apiPost({ action: 'save', record });
+    lastSyncTime = new Date();
+    document.getElementById('last-sync').textContent = fmtTime(lastSyncTime);
+    setSyncBadge('ok');
+    toast('✓ Saved & synced');
+  } catch(e) {
+    setSyncBadge('error');
+    toast('✓ Saved locally — sync failed');
   }
 }
 
@@ -654,9 +593,7 @@ async function deleteDay() {
   loadDayUI();
   updateDataSummary();
   toast('Day deleted');
-  if (scriptUrl) {
-    try { await apiPost({ action: 'delete', key }); } catch(e) {}
-  }
+  try { await apiPost({ action: 'delete', key }); } catch(e) {}
 }
 
 // ─────────────────────────────────────────────
@@ -831,7 +768,7 @@ function updateDataSummary() {
 }
 
 async function clearData() {
-  if (!confirm('Clear all local data? This does NOT delete the Google Sheet.')) return;
+  if (!confirm('Clear all local data?')) return;
   db = {};
   localStorage.removeItem(CACHE_KEY);
   loadDayUI();
@@ -866,9 +803,6 @@ function toast(msg) {
   setTimeout(()=>t.classList.remove('show'), 2500);
 }
 
-// ─────────────────────────────────────────────
-// AUTO-INIT if session active
-// ─────────────────────────────────────────────
 if (sessionStorage.getItem(SESSION_KEY)) init();
 </script>
 </body>
