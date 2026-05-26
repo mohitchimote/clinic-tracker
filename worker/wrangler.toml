@@ -1,0 +1,8 @@
+name            = "clinic-tracker"
+main            = "worker.js"
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding       = "DB"
+database_name = "los-db"
+database_id   = "6dca6263-551a-4774-8406-7cd88bc4f8b5"
