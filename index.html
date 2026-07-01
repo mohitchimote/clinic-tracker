@@ -296,7 +296,6 @@
       <div style="font-weight:600; font-size:15px;">Invoice breakdown</div>
       <select id="inv-period" onchange="renderInvoice()">
         <option value="week">This week</option>
-        <option value="month">This month</option>
         <option value="all">All time</option>
       </select>
     </div>
@@ -423,6 +422,7 @@ function init() {
   }
   loadDayUI();
   updateDataSummary();
+  populateInvoiceMonths();
   syncFromWorker();
 }
 
@@ -461,6 +461,7 @@ async function syncFromWorker() {
       setSyncBadge('ok');
       loadDayUI();
       updateDataSummary();
+      populateInvoiceMonths();
     } else {
       setSyncBadge('error');
     }
@@ -644,10 +645,33 @@ function renderWeek() {
 // INVOICE
 // ─────────────────────────────────────────────
 function getPeriodDays(period) {
+  if (period==='week') return getWeekDays().map(d=>db[dateKey(d)]).filter(Boolean);
+  if (period==='all')  return Object.values(db);
+  // period is a "YYYY-MM" month key
+  return Object.values(db).filter(d => d.dateObj && d.dateObj.slice(0,7)===period);
+}
+
+function populateInvoiceMonths() {
+  const sel = document.getElementById('inv-period');
+  // Remove any existing month options (value matches YYYY-MM pattern)
+  Array.from(sel.options).forEach(o => { if (/^\d{4}-\d{2}$/.test(o.value)) sel.remove(o.index); });
+  // Collect unique months from db
+  const monthSet = new Set(Object.values(db).map(d => d.dateObj && d.dateObj.slice(0,7)).filter(Boolean));
+  // Also include current and previous month even if empty
   const now = new Date();
-  if (period==='week')  return getWeekDays().map(d=>db[dateKey(d)]).filter(Boolean);
-  if (period==='month') return Object.values(db).filter(d => { const dd=new Date(d.dateObj); return dd.getMonth()===now.getMonth()&&dd.getFullYear()===now.getFullYear(); });
-  return Object.values(db);
+  const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  monthSet.add(fmt(now));
+  const prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  monthSet.add(fmt(prev));
+  // Sort descending
+  const months = Array.from(monthSet).sort().reverse();
+  const insertBefore = sel.options[1]; // insert before "All time"
+  months.forEach(m => {
+    const [y, mo] = m.split('-');
+    const label = MONTHS[parseInt(mo,10)-1]+' '+y;
+    const opt = new Option(label, m);
+    sel.insertBefore(opt, insertBefore);
+  });
 }
 
 function renderInvoice() {
@@ -675,7 +699,8 @@ function renderInvoice() {
 function copyInvoice() {
   const period = document.getElementById('inv-period').value;
   const days   = getPeriodDays(period);
-  const label  = period==='week'?'This week':period==='month'?'This month':'All time';
+  const selEl  = document.getElementById('inv-period');
+  const label  = period==='week'?'This week':period==='all'?'All time':selEl.options[selEl.selectedIndex].text;
   let tH=0,tT6=0,tT3=0,tCons=0,tBonus=0,tIndem=0,tGdc=0;
   days.forEach(d => { tH+=d.hours; tT6+=d.t6; tT3+=d.t3; tCons+=d.cons; if(d.bonus)tBonus++; if(d.indem)tIndem++; if(d.gdc)tGdc++; });
   const total = (tH*11)+(tT6*12)+(tT3*2)-(tCons*5)+(tBonus*30)+(tIndem*2.5)+(tGdc*2.5);
