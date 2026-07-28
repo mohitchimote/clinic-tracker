@@ -157,6 +157,20 @@
   .setup-title { font-size: 14px; font-weight: 600; color: var(--amber-text); margin-bottom: 8px; }
   .setup-input { width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13px; font-family: inherit; color: var(--text); background: white; margin-bottom: 8px; }
   .setup-input:focus { outline: none; border-color: var(--blue); }
+
+  /* ── Clinic select screen ── */
+  #clinic-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; padding: 24px;
+  }
+  .clinic-option { text-align: left; padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface2); margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s; }
+  .clinic-option:active { border-color: var(--blue); }
+  .clinic-option-name { font-weight: 600; font-size: 15px; }
+  .clinic-option-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  .num-input { padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); font-size: 14px; color: var(--text); width: 110px; text-align: right; font-family: inherit; }
+  .num-input:focus { outline: none; border-color: var(--blue); }
 </style>
 </head>
 <body>
@@ -170,6 +184,25 @@
     <input class="login-input" type="password" id="pwd-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">Sign in</button>
     <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- Clinic Select Screen -->
+<div id="clinic-screen" style="display:none;">
+  <div class="login-card" style="max-width:400px; text-align:left;">
+    <div style="text-align:center;">
+      <div class="login-logo">🦷</div>
+      <div class="login-title">Select clinic</div>
+      <div class="login-sub">Where are you recording activity for?</div>
+    </div>
+    <div class="clinic-option" onclick="selectClinic('harley')">
+      <div class="clinic-option-name">Harley Tooth Whitening</div>
+      <div class="clinic-option-sub">Hourly rate + treatment tracking</div>
+    </div>
+    <div class="clinic-option" onclick="selectClinic('southend')">
+      <div class="clinic-option-name">Tooth Club Southend-on-Sea</div>
+      <div class="clinic-option-sub">40% private fee split · from 1 Aug 2026</div>
+    </div>
   </div>
 </div>
 
@@ -209,6 +242,8 @@
       </div>
       <button class="nav-btn" onclick="changeDay(1)">›</button>
     </div>
+
+    <div class="clinic-harley">
     <div class="card">
       <div class="section-title">Hours worked</div>
       <div class="row">
@@ -275,12 +310,66 @@
       <div class="stat-card"><div class="stat-label">Treatments</div><div class="stat-val" id="s-treat">£0</div></div>
       <div class="stat-card"><div class="stat-label">Day total</div><div class="stat-val green" id="s-daytotal">£0</div></div>
     </div>
+    </div>
+
+    <div class="clinic-southend">
+    <div class="card">
+      <div class="section-title">Private fees</div>
+      <div class="row">
+        <div><div class="row-label">Private fees invoiced today</div><div class="row-sub">Total charged to patients (gross)</div></div>
+        <input class="num-input" type="number" min="0" step="0.01" placeholder="0.00" id="sh-private" oninput="shCalc()">
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Plan patients</div>
+      <div class="row">
+        <div><div class="row-label">Plan check-ups</div><div class="row-sub">£35 each · you get 40%</div></div>
+        <div class="stepper">
+          <button class="step-btn" onclick="shAdj('planCheckups',-1)">−</button>
+          <span class="step-val" id="v-sh-checkups">0</span>
+          <button class="step-btn" onclick="shAdj('planCheckups',1)">+</button>
+        </div>
+      </div>
+      <div class="row">
+        <div><div class="row-label">Plan hygiene visits</div><div class="row-sub">£58 each · you get 40%</div></div>
+        <div class="stepper">
+          <button class="step-btn" onclick="shAdj('planHygiene',-1)">−</button>
+          <span class="step-val" id="v-sh-hygiene">0</span>
+          <button class="step-btn" onclick="shAdj('planHygiene',1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Deductions (optional)</div>
+      <div class="row">
+        <div><div class="row-label">Lab / rechargeable costs</div><div class="row-sub">Lab bills, implant stock, whitening, finance costs — you pay 50%</div></div>
+        <input class="num-input" type="number" min="0" step="0.01" placeholder="0.00" id="sh-lab" oninput="shCalc()">
+      </div>
+      <div class="row">
+        <div><div class="row-label">Paid via 3rd-party Direct Debit</div><div class="row-sub">Portion of fees above via DD facility — 5% subsidy on your share</div></div>
+        <input class="num-input" type="number" min="0" step="0.01" placeholder="0.00" id="sh-dd" oninput="shCalc()">
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Private income (40%)</div><div class="stat-val" id="sh-s-private">£0</div></div>
+      <div class="stat-card"><div class="stat-label">Plan income (40%)</div><div class="stat-val" id="sh-s-plan">£0</div></div>
+      <div class="stat-card"><div class="stat-label">Deductions</div><div class="stat-val red" id="sh-s-ded">£0</div></div>
+      <div class="stat-card"><div class="stat-label">Day total</div><div class="stat-val green" id="sh-s-total">£0</div></div>
+    </div>
+    <div class="info-box">💡 The 2.5% practice marketing/admin fee isn't shown here — it's calculated on your total invoice at month end.</div>
+    <details style="margin-bottom:12px;">
+      <summary style="cursor:pointer; font-size:13px; font-weight:600; color:var(--text2); padding:4px 0;">📋 Tooth Club fee guide (reference)</summary>
+      <div class="card" style="margin-top:8px;" id="sh-tariff-ref"></div>
+    </details>
+    </div>
+
     <button class="btn btn-primary" onclick="saveDay()">Save this day</button>
     <button class="btn btn-danger" id="delete-btn" onclick="deleteDay()" style="display:none;">Delete this day</button>
   </div>
 
   <!-- THIS WEEK -->
   <div class="pane" id="pane-week">
+    <div class="clinic-harley">
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-label">Days worked</div><div class="stat-val blue" id="w-days">0</div></div>
       <div class="stat-card"><div class="stat-label">Hours total</div><div class="stat-val" id="w-hours">0</div></div>
@@ -288,6 +377,16 @@
       <div class="stat-card"><div class="stat-label">Week earnings</div><div class="stat-val green" id="w-total">£0</div></div>
     </div>
     <div class="card"><div id="week-list"></div></div>
+    </div>
+    <div class="clinic-southend">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Days worked</div><div class="stat-val blue" id="sh-w-days">0</div></div>
+      <div class="stat-card"><div class="stat-label">Private fees</div><div class="stat-val" id="sh-w-private">£0</div></div>
+      <div class="stat-card"><div class="stat-label">Plan visits</div><div class="stat-val" id="sh-w-plan">0</div></div>
+      <div class="stat-card"><div class="stat-label">Week earnings</div><div class="stat-val green" id="sh-w-total">£0</div></div>
+    </div>
+    <div class="card"><div id="sh-week-list"></div></div>
+    </div>
   </div>
 
   <!-- INVOICE -->
@@ -299,7 +398,8 @@
         <option value="all">All time</option>
       </select>
     </div>
-    <div class="card"><div id="inv-lines"></div></div>
+    <div class="clinic-harley"><div class="card"><div id="inv-lines"></div></div></div>
+    <div class="clinic-southend"><div class="card"><div id="inv-lines-sh"></div></div></div>
     <button class="btn btn-secondary" onclick="copyInvoice()">📋 Copy invoice text</button>
     <button class="btn btn-secondary" onclick="window.print()">🖨️ Print / Save as PDF</button>
   </div>
@@ -356,6 +456,11 @@
   <!-- SETTINGS -->
   <div class="pane" id="pane-settings">
     <div class="card">
+      <div class="section-title">Clinic</div>
+      <div class="row"><div class="row-label">Currently recording for</div><span id="sett-clinic-name" style="font-weight:600;"></span></div>
+    </div>
+    <button class="btn btn-secondary" onclick="switchClinic()">🔄 Switch clinic</button>
+    <div class="card">
       <div class="section-title">Connection status</div>
       <div class="row"><div class="row-label">Cloudflare D1</div><span id="conn-status" style="font-size:13px; font-weight:600; color:var(--green);">● Connected</span></div>
       <div class="row"><div class="row-label">Last synced</div><span id="last-sync" style="font-size:13px; color:var(--text3);">Never</span></div>
@@ -379,16 +484,24 @@
 // ─────────────────────────────────────────────
 const APP_PASSWORD = 'monica2024';
 const WORKER_URL   = 'https://clinic-tracker.mohit-chimote.workers.dev';
-const CACHE_KEY    = 'clinic_cache_v3';
+const CACHE_KEY    = 'clinic_cache_v4';
 const SESSION_KEY  = 'clinic_session';
+const CLINIC_KEY   = 'clinic_selected';
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+const CLINICS = {
+  harley:   { name: 'Harley Tooth Whitening' },
+  southend: { name: 'Tooth Club Southend-on-Sea' },
+};
+
 let db          = {};
 let currentDate = new Date();
 let dayState    = { hours:0, t6:0, t3:0, cons:0, bonus:false, indem:true, gdc:true };
+let southendState = { privateFees:0, planCheckups:0, planHygiene:0, labCost:0, ddAmount:0 };
 let lastSyncTime = null;
+let currentClinic = localStorage.getItem(CLINIC_KEY) || null;
 
 // ─────────────────────────────────────────────
 // LOGIN
@@ -398,18 +511,45 @@ function doLogin() {
   if (pwd === APP_PASSWORD) {
     sessionStorage.setItem(SESSION_KEY, '1');
     document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('main-app').style.display = 'block';
-    init();
+    enterAppOrClinicPicker();
   } else {
     document.getElementById('login-error').textContent = 'Incorrect password. Please try again.';
     document.getElementById('pwd-input').value = '';
   }
 }
 
+function enterAppOrClinicPicker() {
+  if (currentClinic && CLINICS[currentClinic]) {
+    document.getElementById('clinic-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    init();
+  } else {
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('clinic-screen').style.display = 'flex';
+  }
+}
+
+function selectClinic(c) {
+  currentClinic = c;
+  localStorage.setItem(CLINIC_KEY, c);
+  document.getElementById('clinic-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('pane-log').classList.add('active');
+  document.querySelector('.tab').classList.add('active');
+  init();
+}
+
+function switchClinic() {
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('clinic-screen').style.display = 'flex';
+}
+
 // Check if already logged in this session
 if (sessionStorage.getItem(SESSION_KEY)) {
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('main-app').style.display = 'block';
+  enterAppOrClinicPicker();
 }
 
 // ─────────────────────────────────────────────
@@ -420,10 +560,21 @@ function init() {
   if (cached) {
     try { db = JSON.parse(cached); } catch(e) { db = {}; }
   }
+  applyClinicUI();
+  renderTariffRef();
   loadDayUI();
   updateDataSummary();
   populateInvoiceMonths();
   syncFromWorker();
+}
+
+function applyClinicUI() {
+  const info = CLINICS[currentClinic];
+  if (!info) return;
+  document.getElementById('hdr-sub').textContent = info.name + ' · Dr Monica';
+  document.getElementById('sett-clinic-name').textContent = info.name;
+  document.querySelectorAll('.clinic-harley').forEach(el => el.style.display = currentClinic==='harley' ? '' : 'none');
+  document.querySelectorAll('.clinic-southend').forEach(el => el.style.display = currentClinic==='southend' ? '' : 'none');
 }
 
 // ─────────────────────────────────────────────
@@ -480,8 +631,13 @@ async function forceSyncFromWorker() {
 // ─────────────────────────────────────────────
 // DAY LOGGING
 // ─────────────────────────────────────────────
-function dateKey(d) {
+function plainDateKey(d) {
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function dateKey(d, clinic) {
+  const c = clinic || currentClinic;
+  const base = plainDateKey(d);
+  return c === 'southend' ? 'southend_'+base : base;
 }
 function fmtDate(d) { return d.getDate()+' '+MONTHS[d.getMonth()]+' '+d.getFullYear(); }
 function fmtTime(d) { return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }
@@ -527,6 +683,78 @@ function updateDayCalc() {
   document.getElementById('s-daytotal').textContent = '£'+r.total.toFixed(2);
 }
 
+// ─────────────────────────────────────────────
+// SOUTHEND DAY LOGGING
+// ─────────────────────────────────────────────
+function shAdj(f, d) {
+  southendState[f] = Math.max(0, southendState[f]+d);
+  document.getElementById(f==='planCheckups'?'v-sh-checkups':'v-sh-hygiene').textContent = southendState[f];
+  shCalc();
+}
+
+function calcDaySouthend(s) {
+  const privateIncome = s.privateFees*0.40;
+  const planIncome = (s.planCheckups*35 + s.planHygiene*58)*0.40;
+  const ddDeduction = s.ddAmount*0.40*0.05;
+  const labDeduction = s.labCost*0.50;
+  return { privateIncome, planIncome, ddDeduction, labDeduction, total: privateIncome+planIncome-ddDeduction-labDeduction };
+}
+
+function shCalc() {
+  southendState.privateFees = parseFloat(document.getElementById('sh-private').value) || 0;
+  southendState.labCost     = parseFloat(document.getElementById('sh-lab').value) || 0;
+  southendState.ddAmount    = parseFloat(document.getElementById('sh-dd').value) || 0;
+  const r = calcDaySouthend(southendState);
+  document.getElementById('sh-s-private').textContent = '£'+r.privateIncome.toFixed(2);
+  document.getElementById('sh-s-plan').textContent    = '£'+r.planIncome.toFixed(2);
+  document.getElementById('sh-s-ded').textContent     = '£'+(r.ddDeduction+r.labDeduction).toFixed(2);
+  document.getElementById('sh-s-total').textContent   = '£'+r.total.toFixed(2);
+}
+
+function renderTariffRef() {
+  const el = document.getElementById('sh-tariff-ref');
+  if (!el || el.dataset.rendered) return;
+  const groups = [
+    { title:'General Dentistry', items: [
+      ['Examination','£44'], ['X-Ray','£15'], ['OPG','£249'], ['CBCT','£249'],
+      ['Hygienist (single session)','£74'], ['Airflow','£99'], ['White Filling','from £149'],
+      ['Extraction','from £149'], ['Surgical Extraction','£349'], ['Recement','£149'],
+      ['Root Filling','from £649'], ['Emergency Appointment','£79'],
+      ['Fixed Retainer','£174/arch'], ['Essex Retainer','£149/arch'],
+      ['Vivera Retainer (3 sets)','£549'], ['Night Guard','£159/arch'],
+    ]},
+    { title:'Cosmetic Dentistry', items: [
+      ['Teeth Whitening','from £185'], ['Clear Aligner','from £2,000'],
+      ['Invisalign','from £2,500'], ['Fixed Braces','from £2,500'],
+      ['Crowns','from £800'], ['Bridges (per unit)','from £800'],
+      ['Veneers','from £800'], ['Dentures (Acrylic)','from £550'],
+      ['Dentures (Metal)','from £750'], ['Mini Smile Makeover','from £1,400'],
+      ['Sedation / Anaesthesia','from £299'], ['Composite Bonding','from £99/tooth'],
+    ]},
+    { title:'Dental Implants', items: [
+      ['Single Implant, Abutment & Crown','from £2,000'], ['All-On-4 (1 arch)','from £17,000'],
+      ['All-On-4 (2 arches)','from £25,000'], ['Block Graft','from £1,000'],
+      ['Bone Graft','from £500'], ['Sinus Lift','from £1,000'],
+    ]},
+    { title:'Facial Aesthetics', items: [
+      ['Anti-wrinkle (1 area)','£149'], ['Anti-wrinkle (2 areas)','£199'],
+      ['Anti-wrinkle (3 areas)','£249'], ['Lip Fillers','from £299'],
+    ]},
+    { title:'Plan patients (fixed rate)', items: [
+      ['Check-up','£35'], ['Hygiene appointment','£58'],
+    ]},
+  ];
+  let html = '';
+  groups.forEach(g => {
+    html += `<div class="section-title">${g.title}</div>`;
+    g.items.forEach(([name,price]) => {
+      html += `<div class="row"><span class="row-label">${name}</span><span style="font-weight:600;font-size:13px;">${price}</span></div>`;
+    });
+  });
+  el.innerHTML = html;
+  el.dataset.rendered = '1';
+}
+
 function changeDay(d) {
   currentDate = new Date(currentDate);
   currentDate.setDate(currentDate.getDate()+d);
@@ -539,6 +767,24 @@ function loadDayUI() {
   const key = dateKey(currentDate);
   const saved = db[key];
   const deleteBtn = document.getElementById('delete-btn');
+
+  if (currentClinic === 'southend') {
+    if (saved) {
+      southendState = { privateFees:saved.privateFees||0, planCheckups:saved.planCheckups||0, planHygiene:saved.planHygiene||0, labCost:saved.labCost||0, ddAmount:saved.ddAmount||0 };
+      deleteBtn.style.display = 'block';
+    } else {
+      southendState = { privateFees:0, planCheckups:0, planHygiene:0, labCost:0, ddAmount:0 };
+      deleteBtn.style.display = 'none';
+    }
+    document.getElementById('sh-private').value = southendState.privateFees || '';
+    document.getElementById('sh-lab').value     = southendState.labCost || '';
+    document.getElementById('sh-dd').value      = southendState.ddAmount || '';
+    document.getElementById('v-sh-checkups').textContent = southendState.planCheckups;
+    document.getElementById('v-sh-hygiene').textContent  = southendState.planHygiene;
+    shCalc();
+    return;
+  }
+
   if (saved) {
     dayState = { hours:saved.hours, t6:saved.t6, t3:saved.t3, cons:saved.cons, bonus:saved.bonus, indem:saved.indem, gdc:saved.gdc };
     document.getElementById('start-time').value = saved.start || '';
@@ -560,15 +806,27 @@ function loadDayUI() {
 
 async function saveDay() {
   const key = dateKey(currentDate);
-  const r   = calcDay(dayState);
-  const record = {
-    key, date: fmtDate(currentDate), dateObj: key,
-    hours: dayState.hours, t6: dayState.t6, t3: dayState.t3, cons: dayState.cons,
-    bonus: dayState.bonus, indem: dayState.indem, gdc: dayState.gdc,
-    start: document.getElementById('start-time').value,
-    end:   document.getElementById('end-time').value,
-    total: r.total
-  };
+  const dateObj = plainDateKey(currentDate);
+  let record;
+  if (currentClinic === 'southend') {
+    const r = calcDaySouthend(southendState);
+    record = {
+      key, date: fmtDate(currentDate), dateObj, clinic: 'southend',
+      privateFees: southendState.privateFees, planCheckups: southendState.planCheckups,
+      planHygiene: southendState.planHygiene, labCost: southendState.labCost, ddAmount: southendState.ddAmount,
+      total: r.total
+    };
+  } else {
+    const r = calcDay(dayState);
+    record = {
+      key, date: fmtDate(currentDate), dateObj, clinic: 'harley',
+      hours: dayState.hours, t6: dayState.t6, t3: dayState.t3, cons: dayState.cons,
+      bonus: dayState.bonus, indem: dayState.indem, gdc: dayState.gdc,
+      start: document.getElementById('start-time').value,
+      end:   document.getElementById('end-time').value,
+      total: r.total
+    };
+  }
   db[key] = record;
   localStorage.setItem(CACHE_KEY, JSON.stringify(db));
   document.getElementById('delete-btn').style.display = 'block';
@@ -622,6 +880,10 @@ function getWeekDays() {
 }
 
 function renderWeek() {
+  if (currentClinic === 'southend') renderWeekSouthend(); else renderWeekHarley();
+}
+
+function renderWeekHarley() {
   const days = getWeekDays();
   let nDays=0, nHours=0, nTreats=0, total=0, html='';
   days.forEach(d => {
@@ -641,14 +903,36 @@ function renderWeek() {
   document.getElementById('week-list').innerHTML  = html || '<div class="empty-state">No days logged this week</div>';
 }
 
+function renderWeekSouthend() {
+  const days = getWeekDays();
+  let nDays=0, totalPrivate=0, nPlan=0, total=0, html='';
+  days.forEach(d => {
+    const s = db[dateKey(d)];
+    const label = DAYS[d.getDay()].slice(0,3)+' '+d.getDate()+' '+MONTHS[d.getMonth()];
+    if (s) {
+      const plan = (s.planCheckups||0)+(s.planHygiene||0);
+      nDays++; totalPrivate+=(s.privateFees||0); nPlan+=plan; total+=s.total;
+      html += `<div class="week-item"><div><div class="week-item-date">${label}</div><div class="week-item-detail">£${(s.privateFees||0).toFixed(2)} private · ${plan} plan</div></div><div class="week-item-amt">£${s.total.toFixed(2)}</div></div>`;
+    } else {
+      html += `<div class="week-item empty"><div class="week-item-date">${label}</div><div class="week-item-detail">not logged</div></div>`;
+    }
+  });
+  document.getElementById('sh-w-days').textContent    = nDays;
+  document.getElementById('sh-w-private').textContent = '£'+totalPrivate.toFixed(2);
+  document.getElementById('sh-w-plan').textContent    = nPlan;
+  document.getElementById('sh-w-total').textContent   = '£'+total.toFixed(2);
+  document.getElementById('sh-week-list').innerHTML   = html || '<div class="empty-state">No days logged this week</div>';
+}
+
 // ─────────────────────────────────────────────
 // INVOICE
 // ─────────────────────────────────────────────
 function getPeriodDays(period) {
+  const ofClinic = r => (r.clinic || 'harley') === currentClinic;
   if (period==='week') return getWeekDays().map(d=>db[dateKey(d)]).filter(Boolean);
-  if (period==='all')  return Object.values(db);
+  if (period==='all')  return Object.values(db).filter(ofClinic);
   // period is a "YYYY-MM" month key
-  return Object.values(db).filter(d => d.dateObj && d.dateObj.slice(0,7)===period);
+  return Object.values(db).filter(d => d.dateObj && d.dateObj.slice(0,7)===period).filter(ofClinic);
 }
 
 function populateInvoiceMonths() {
@@ -675,6 +959,14 @@ function populateInvoiceMonths() {
 }
 
 function renderInvoice() {
+  if (currentClinic === 'southend') renderInvoiceSouthend(); else renderInvoiceHarley();
+}
+
+function copyInvoice() {
+  if (currentClinic === 'southend') copyInvoiceSouthend(); else copyInvoiceHarley();
+}
+
+function renderInvoiceHarley() {
   const period = document.getElementById('inv-period').value;
   const days   = getPeriodDays(period);
   if (!days.length) { document.getElementById('inv-lines').innerHTML='<div class="empty-state">No days logged for this period</div>'; return; }
@@ -696,7 +988,7 @@ function renderInvoice() {
   document.getElementById('inv-lines').innerHTML = html;
 }
 
-function copyInvoice() {
+function copyInvoiceHarley() {
   const period = document.getElementById('inv-period').value;
   const days   = getPeriodDays(period);
   const selEl  = document.getElementById('inv-period');
@@ -705,7 +997,7 @@ function copyInvoice() {
   days.forEach(d => { tH+=d.hours; tT6+=d.t6; tT3+=d.t3; tCons+=d.cons; if(d.bonus)tBonus++; if(d.indem)tIndem++; if(d.gdc)tGdc++; });
   const total = (tH*11)+(tT6*12)+(tT3*2)-(tCons*5)+(tBonus*30)+(tIndem*2.5)+(tGdc*2.5);
   const pad = (s,n) => s.padEnd(n,' ');
-  let t = `CLINIC INVOICE — ${label}\n${'─'.repeat(42)}\n\n`;
+  let t = `CLINIC INVOICE — Harley Tooth Whitening — ${label}\n${'─'.repeat(42)}\n\n`;
   t += pad(`Hourly pay (${tH} hrs × £11)`,38)+`+£${(tH*11).toFixed(2)}\n`;
   if(tT6)   t += pad(`6% treatments (${tT6} × £12)`,38)+`+£${(tT6*12).toFixed(2)}\n`;
   if(tT3)   t += pad(`3% treatments (${tT3} × £2)`,38)+`+£${(tT3*2).toFixed(2)}\n`;
@@ -718,14 +1010,73 @@ function copyInvoice() {
 }
 
 // ─────────────────────────────────────────────
+// SOUTHEND INVOICE
+// ─────────────────────────────────────────────
+function southendTotals(days) {
+  let privateFees=0, checkups=0, hygiene=0, labCost=0, ddAmount=0;
+  days.forEach(d => {
+    privateFees += d.privateFees||0; checkups += d.planCheckups||0; hygiene += d.planHygiene||0;
+    labCost += d.labCost||0; ddAmount += d.ddAmount||0;
+  });
+  const planFeesGross = checkups*35 + hygiene*58;
+  const grossEarnings = privateFees + planFeesGross;
+  return {
+    privateFees, checkups, hygiene, labCost, ddAmount, planFeesGross, grossEarnings,
+    lines: [
+      { label:`Private fees — 40% of £${privateFees.toFixed(2)}`,                 amt: privateFees*0.40,        pos:true  },
+      { label:`Plan check-ups — ${checkups} × £35 × 40%`,                        amt: checkups*35*0.40,        pos:true  },
+      { label:`Plan hygiene — ${hygiene} × £58 × 40%`,                           amt: hygiene*58*0.40,         pos:true  },
+      { label:`3rd-party Direct Debit subsidy — 5%`,                             amt: ddAmount*0.40*0.05,      pos:false },
+      { label:`Lab / rechargeable costs — 50%`,                                  amt: labCost*0.50,            pos:false },
+      { label:`Practice marketing fee — 2.5% of £${grossEarnings.toFixed(2)}`,   amt: grossEarnings*0.025,     pos:false },
+    ].filter(l => l.amt > 0.004),
+  };
+}
+
+function renderInvoiceSouthend() {
+  const period = document.getElementById('inv-period').value;
+  const days   = getPeriodDays(period);
+  const el = document.getElementById('inv-lines-sh');
+  if (!days.length) { el.innerHTML='<div class="empty-state">No days logged for this period</div>'; return; }
+  const { lines } = southendTotals(days);
+  let total = 0;
+  lines.forEach(l => total += l.pos ? l.amt : -l.amt);
+  let html = lines.map(l=>`<div class="inv-line"><span class="inv-line-label">${l.label}</span><span class="inv-line-amt ${l.pos?'pos':'neg'}">${l.pos?'+':'−'}£${l.amt.toFixed(2)}</span></div>`).join('');
+  html += `<div class="total-row"><span>Total due</span><span style="color:var(--green);">£${total.toFixed(2)}</span></div>`;
+  el.innerHTML = html;
+}
+
+function copyInvoiceSouthend() {
+  const period = document.getElementById('inv-period').value;
+  const days   = getPeriodDays(period);
+  const selEl  = document.getElementById('inv-period');
+  const label  = period==='week'?'This week':period==='all'?'All time':selEl.options[selEl.selectedIndex].text;
+  const { lines } = southendTotals(days);
+  let total = 0;
+  lines.forEach(l => total += l.pos ? l.amt : -l.amt);
+  const pad = (s,n) => s.padEnd(n,' ');
+  let t = `CLINIC INVOICE — Tooth Club Southend-on-Sea — ${label}\n${'─'.repeat(50)}\n\n`;
+  lines.forEach(l => { t += pad(l.label,44)+`${l.pos?'+':'-'}£${l.amt.toFixed(2)}\n`; });
+  t += `${'─'.repeat(50)}\nTOTAL DUE: £${total.toFixed(2)}\n`;
+  navigator.clipboard.writeText(t).then(()=>toast('✓ Copied to clipboard')).catch(()=>toast('Copy failed'));
+}
+
+// ─────────────────────────────────────────────
 // TAX
 // ─────────────────────────────────────────────
 function renderTax() {
   const allDays = Object.values(db);
   let grossTotal=0, expensesTotal=0;
   allDays.forEach(d => {
-    const gross = (d.hours*11)+(d.t6*17)+(d.t3*7)-(d.cons*5)+(d.bonus?30:0)+(d.indem?2.5:0)+(d.gdc?2.5:0);
-    const expenses = (d.t6*5)+(d.t3*5)+(d.indem?2.5:0)+(d.gdc?2.5:0);
+    let gross, expenses;
+    if ((d.clinic||'harley') === 'southend') {
+      const planFeesGross = (d.planCheckups||0)*35 + (d.planHygiene||0)*58;
+      gross = (d.privateFees||0)*0.40 + planFeesGross*0.40;
+      expenses = (d.labCost||0)*0.50 + (d.ddAmount||0)*0.40*0.05;
+    } else {
+      gross = (d.hours*11)+(d.t6*17)+(d.t3*7)-(d.cons*5)+(d.bonus?30:0)+(d.indem?2.5:0)+(d.gdc?2.5:0);
+      expenses = (d.t6*5)+(d.t3*5)+(d.indem?2.5:0)+(d.gdc?2.5:0);
+    }
     grossTotal += gross; expensesTotal += expenses;
   });
   const taxableProfit = Math.max(0, grossTotal - expensesTotal);
@@ -788,8 +1139,8 @@ function renderTax() {
 function updateDataSummary() {
   const all = Object.values(db);
   document.getElementById('data-days').textContent  = all.length;
-  document.getElementById('data-hours').textContent = all.reduce((s,d)=>s+d.hours,0);
-  document.getElementById('data-total').textContent = '£'+all.reduce((s,d)=>s+d.total,0).toFixed(2);
+  document.getElementById('data-hours').textContent = all.reduce((s,d)=>s+(d.hours||0),0);
+  document.getElementById('data-total').textContent = '£'+all.reduce((s,d)=>s+(d.total||0),0).toFixed(2);
 }
 
 async function clearData() {
@@ -828,7 +1179,6 @@ function toast(msg) {
   setTimeout(()=>t.classList.remove('show'), 2500);
 }
 
-if (sessionStorage.getItem(SESSION_KEY)) init();
 </script>
 </body>
 </html>

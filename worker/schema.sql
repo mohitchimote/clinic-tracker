@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS clinic_days (
   key       TEXT PRIMARY KEY,
+  clinic    TEXT NOT NULL DEFAULT 'harley',
   date      TEXT NOT NULL,
   date_obj  TEXT NOT NULL,
   hours     REAL NOT NULL DEFAULT 0,
@@ -11,5 +12,10 @@ CREATE TABLE IF NOT EXISTS clinic_days (
   gdc       INTEGER NOT NULL DEFAULT 0,
   start_time TEXT,
   end_time   TEXT,
+  private_fees  REAL NOT NULL DEFAULT 0,
+  plan_checkups INTEGER NOT NULL DEFAULT 0,
+  plan_hygiene  INTEGER NOT NULL DEFAULT 0,
+  lab_cost      REAL NOT NULL DEFAULT 0,
+  dd_amount     REAL NOT NULL DEFAULT 0,
   total     REAL NOT NULL DEFAULT 0
 );
