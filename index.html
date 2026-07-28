@@ -176,10 +176,12 @@
   .sh-item-row:last-child { border-bottom: none; padding-bottom: 0; }
   .sh-item-row:first-child { padding-top: 0; }
   .sh-item-select { width: 100%; margin-bottom: 8px; font-size: 13px; padding: 8px 10px; }
-  .sh-item-sub { display: flex; align-items: center; gap: 8px; }
-  .sh-item-rate { width: 90px; flex-shrink: 0; }
-  .sh-item-share { font-size: 12px; color: var(--text3); flex: 1; text-align: right; }
-  .sh-item-remove { width: 30px; height: 30px; flex-shrink: 0; }
+  .sh-item-sub { display: flex; align-items: center; gap: 6px; }
+  .sh-item-label { font-size: 12px; color: var(--text3); flex-shrink: 0; }
+  .sh-item-rate { width: 72px; flex-shrink: 0; padding: 6px 8px; }
+  .sh-item-qty { width: 46px; flex-shrink: 0; padding: 6px 8px; }
+  .sh-item-remove { width: 30px; height: 30px; flex-shrink: 0; margin-left: auto; }
+  .sh-item-share { font-size: 12px; color: var(--text3); text-align: right; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -730,7 +732,7 @@ function shOptionsHtml(selectedName) {
 
 function shAddItem() {
   const first = SH_TREATMENTS[0];
-  southendState.items.push({ name: first.name, rate: first.rate });
+  southendState.items.push({ name: first.name, rate: first.rate, qty: 1 });
   renderShItems();
   shCalc();
 }
@@ -743,16 +745,32 @@ function shRemoveItem(idx) {
 
 function shItemTreatmentChange(idx, name) {
   const t = SH_TREATMENTS.find(x => x.name === name);
-  southendState.items[idx] = { name, rate: t ? t.rate : 0 };
+  const qty = southendState.items[idx].qty || 1;
+  southendState.items[idx] = { name, rate: t ? t.rate : 0, qty };
   renderShItems();
   shCalc();
 }
 
 function shItemRateChange(idx, val) {
   southendState.items[idx].rate = parseFloat(val) || 0;
-  const shareEl = document.getElementById('sh-item-share-'+idx);
-  if (shareEl) shareEl.textContent = '40%: £'+(southendState.items[idx].rate*0.40).toFixed(2);
+  updateShItemShare(idx);
   shCalc();
+}
+
+function shItemQtyChange(idx, el) {
+  const qty = Math.max(1, parseInt(el.value, 10) || 1);
+  southendState.items[idx].qty = qty;
+  if (String(qty) !== el.value) el.value = qty;
+  updateShItemShare(idx);
+  shCalc();
+}
+
+function updateShItemShare(idx) {
+  const shareEl = document.getElementById('sh-item-share-'+idx);
+  if (!shareEl) return;
+  const item = southendState.items[idx];
+  const lineGross = (item.rate||0) * (item.qty||1);
+  shareEl.textContent = `Gross £${lineGross.toFixed(2)} · 40%: £${(lineGross*0.40).toFixed(2)}`;
 }
 
 function renderShItems() {
@@ -761,21 +779,26 @@ function renderShItems() {
     el.innerHTML = '<div class="empty-state" style="padding:16px 0;">No treatments added yet</div>';
     return;
   }
-  el.innerHTML = southendState.items.map((item, idx) => `
+  el.innerHTML = southendState.items.map((item, idx) => {
+    const qty = item.qty || 1;
+    const lineGross = (item.rate||0) * qty;
+    return `
     <div class="sh-item-row">
       <select class="sh-item-select" onchange="shItemTreatmentChange(${idx}, this.value)">${shOptionsHtml(item.name)}</select>
       <div class="sh-item-sub">
-        <span class="row-sub">Rate £</span>
+        <span class="sh-item-label">Rate £</span>
         <input type="number" min="0" step="0.01" class="num-input sh-item-rate" value="${item.rate}" oninput="shItemRateChange(${idx}, this.value)">
-        <span class="sh-item-share" id="sh-item-share-${idx}">40%: £${(item.rate*0.40).toFixed(2)}</span>
+        <span class="sh-item-label">Qty</span>
+        <input type="number" min="1" step="1" class="num-input sh-item-qty" value="${qty}" oninput="shItemQtyChange(${idx}, this)">
         <button class="step-btn sh-item-remove" onclick="shRemoveItem(${idx})">✕</button>
       </div>
-    </div>
-  `).join('');
+      <div class="sh-item-share" id="sh-item-share-${idx}">Gross £${lineGross.toFixed(2)} · 40%: £${(lineGross*0.40).toFixed(2)}</div>
+    </div>`;
+  }).join('');
 }
 
 function calcDaySouthend(s) {
-  const gross = s.items.reduce((sum, i) => sum + (i.rate || 0), 0);
+  const gross = s.items.reduce((sum, i) => sum + (i.rate||0) * (i.qty||1), 0);
   const income = gross * 0.40;
   const ddDeduction = s.ddAmount*0.40*0.05;
   const labDeduction = s.labCost*0.50;
@@ -823,7 +846,7 @@ function loadDayUI() {
 
   if (currentClinic === 'southend') {
     if (saved) {
-      southendState = { items: (saved.items||[]).map(i=>({name:i.name, rate:i.rate})), labCost:saved.labCost||0, ddAmount:saved.ddAmount||0 };
+      southendState = { items: (saved.items||[]).map(i=>({name:i.name, rate:i.rate, qty:i.qty||1})), labCost:saved.labCost||0, ddAmount:saved.ddAmount||0 };
       deleteBtn.style.display = 'block';
     } else {
       southendState = { items: [], labCost:0, ddAmount:0 };
@@ -961,9 +984,10 @@ function renderWeekSouthend() {
     const label = DAYS[d.getDay()].slice(0,3)+' '+d.getDate()+' '+MONTHS[d.getMonth()];
     if (s) {
       const items = s.items||[];
-      const gross = items.reduce((sum,i)=>sum+(i.rate||0),0);
-      nDays++; totalGross+=gross; nItems+=items.length; total+=s.total;
-      html += `<div class="week-item"><div><div class="week-item-date">${label}</div><div class="week-item-detail">${items.length} treatment${items.length===1?'':'s'} · £${gross.toFixed(2)} gross</div></div><div class="week-item-amt">£${s.total.toFixed(2)}</div></div>`;
+      const gross = items.reduce((sum,i)=>sum+(i.rate||0)*(i.qty||1),0);
+      const count = items.reduce((sum,i)=>sum+(i.qty||1),0);
+      nDays++; totalGross+=gross; nItems+=count; total+=s.total;
+      html += `<div class="week-item"><div><div class="week-item-date">${label}</div><div class="week-item-detail">${count} treatment${count===1?'':'s'} · £${gross.toFixed(2)} gross</div></div><div class="week-item-amt">£${s.total.toFixed(2)}</div></div>`;
     } else {
       html += `<div class="week-item empty"><div class="week-item-date">${label}</div><div class="week-item-detail">not logged</div></div>`;
     }
@@ -1069,11 +1093,12 @@ function southendTotals(days) {
   days.forEach(d => {
     labCost += d.labCost||0; ddAmount += d.ddAmount||0;
     (d.items||[]).forEach(item => {
-      const rate = item.rate||0;
-      grossEarnings += rate;
+      const qty = item.qty||1;
+      const lineGross = (item.rate||0) * qty;
+      grossEarnings += lineGross;
       if (!grouped[item.name]) grouped[item.name] = { count:0, gross:0 };
-      grouped[item.name].count++;
-      grouped[item.name].gross += rate;
+      grouped[item.name].count += qty;
+      grouped[item.name].gross += lineGross;
     });
   });
   const knownNames = SH_TREATMENTS.map(t => t.name).filter(n => grouped[n]);
@@ -1130,7 +1155,7 @@ function renderTax() {
   allDays.forEach(d => {
     let gross, expenses;
     if ((d.clinic||'harley') === 'southend') {
-      const itemsGross = (d.items||[]).reduce((s,i)=>s+(i.rate||0),0);
+      const itemsGross = (d.items||[]).reduce((s,i)=>s+(i.rate||0)*(i.qty||1),0);
       gross = itemsGross*0.40;
       expenses = (d.labCost||0)*0.50 + (d.ddAmount||0)*0.40*0.05;
     } else {
