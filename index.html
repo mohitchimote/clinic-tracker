@@ -171,6 +171,15 @@
 
   .num-input { padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); font-size: 14px; color: var(--text); width: 110px; text-align: right; font-family: inherit; }
   .num-input:focus { outline: none; border-color: var(--blue); }
+
+  .sh-item-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .sh-item-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .sh-item-row:first-child { padding-top: 0; }
+  .sh-item-select { width: 100%; margin-bottom: 8px; font-size: 13px; padding: 8px 10px; }
+  .sh-item-sub { display: flex; align-items: center; gap: 8px; }
+  .sh-item-rate { width: 90px; flex-shrink: 0; }
+  .sh-item-share { font-size: 12px; color: var(--text3); flex: 1; text-align: right; }
+  .sh-item-remove { width: 30px; height: 30px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -314,30 +323,9 @@
 
     <div class="clinic-southend">
     <div class="card">
-      <div class="section-title">Private fees</div>
-      <div class="row">
-        <div><div class="row-label">Private fees invoiced today</div><div class="row-sub">Total charged to patients (gross)</div></div>
-        <input class="num-input" type="number" min="0" step="0.01" placeholder="0.00" id="sh-private" oninput="shCalc()">
-      </div>
-    </div>
-    <div class="card">
-      <div class="section-title">Plan patients</div>
-      <div class="row">
-        <div><div class="row-label">Plan check-ups</div><div class="row-sub">£35 each · you get 40%</div></div>
-        <div class="stepper">
-          <button class="step-btn" onclick="shAdj('planCheckups',-1)">−</button>
-          <span class="step-val" id="v-sh-checkups">0</span>
-          <button class="step-btn" onclick="shAdj('planCheckups',1)">+</button>
-        </div>
-      </div>
-      <div class="row">
-        <div><div class="row-label">Plan hygiene visits</div><div class="row-sub">£58 each · you get 40%</div></div>
-        <div class="stepper">
-          <button class="step-btn" onclick="shAdj('planHygiene',-1)">−</button>
-          <span class="step-val" id="v-sh-hygiene">0</span>
-          <button class="step-btn" onclick="shAdj('planHygiene',1)">+</button>
-        </div>
-      </div>
+      <div class="section-title">Treatments performed today</div>
+      <div id="sh-items"></div>
+      <button class="btn btn-secondary" style="margin-top:8px; margin-bottom:0;" onclick="shAddItem()">+ Add treatment</button>
     </div>
     <div class="card">
       <div class="section-title">Deductions (optional)</div>
@@ -351,8 +339,8 @@
       </div>
     </div>
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">Private income (40%)</div><div class="stat-val" id="sh-s-private">£0</div></div>
-      <div class="stat-card"><div class="stat-label">Plan income (40%)</div><div class="stat-val" id="sh-s-plan">£0</div></div>
+      <div class="stat-card"><div class="stat-label">Gross fees today</div><div class="stat-val" id="sh-s-gross">£0</div></div>
+      <div class="stat-card"><div class="stat-label">Your income (40%)</div><div class="stat-val" id="sh-s-income">£0</div></div>
       <div class="stat-card"><div class="stat-label">Deductions</div><div class="stat-val red" id="sh-s-ded">£0</div></div>
       <div class="stat-card"><div class="stat-label">Day total</div><div class="stat-val green" id="sh-s-total">£0</div></div>
     </div>
@@ -381,8 +369,8 @@
     <div class="clinic-southend">
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-label">Days worked</div><div class="stat-val blue" id="sh-w-days">0</div></div>
-      <div class="stat-card"><div class="stat-label">Private fees</div><div class="stat-val" id="sh-w-private">£0</div></div>
-      <div class="stat-card"><div class="stat-label">Plan visits</div><div class="stat-val" id="sh-w-plan">0</div></div>
+      <div class="stat-card"><div class="stat-label">Gross fees</div><div class="stat-val" id="sh-w-private">£0</div></div>
+      <div class="stat-card"><div class="stat-label">Treatments logged</div><div class="stat-val" id="sh-w-plan">0</div></div>
       <div class="stat-card"><div class="stat-label">Week earnings</div><div class="stat-val green" id="sh-w-total">£0</div></div>
     </div>
     <div class="card"><div id="sh-week-list"></div></div>
@@ -496,10 +484,54 @@ const CLINICS = {
   southend: { name: 'Tooth Club Southend-on-Sea' },
 };
 
+const SH_TREATMENTS = [
+  { name:'Examination', rate:44, group:'General Dentistry' },
+  { name:'X-Ray', rate:15, group:'General Dentistry' },
+  { name:'OPG', rate:249, group:'General Dentistry' },
+  { name:'CBCT', rate:249, group:'General Dentistry' },
+  { name:'Hygienist (single session)', rate:74, group:'General Dentistry' },
+  { name:'Airflow', rate:99, group:'General Dentistry' },
+  { name:'White Filling', rate:149, group:'General Dentistry' },
+  { name:'Extraction', rate:149, group:'General Dentistry' },
+  { name:'Surgical Extraction', rate:349, group:'General Dentistry' },
+  { name:'Recement', rate:149, group:'General Dentistry' },
+  { name:'Root Filling', rate:649, group:'General Dentistry' },
+  { name:'Emergency Appointment', rate:79, group:'General Dentistry' },
+  { name:'Fixed Retainer (per arch)', rate:174, group:'General Dentistry' },
+  { name:'Essex Retainer (per arch)', rate:149, group:'General Dentistry' },
+  { name:'Vivera Retainer (3 sets)', rate:549, group:'General Dentistry' },
+  { name:'Night Guard (per arch)', rate:159, group:'General Dentistry' },
+  { name:'Teeth Whitening', rate:185, group:'Cosmetic Dentistry' },
+  { name:'Clear Aligner', rate:2000, group:'Cosmetic Dentistry' },
+  { name:'Invisalign', rate:2500, group:'Cosmetic Dentistry' },
+  { name:'Fixed Braces', rate:2500, group:'Cosmetic Dentistry' },
+  { name:'Crowns', rate:800, group:'Cosmetic Dentistry' },
+  { name:'Bridges (per unit)', rate:800, group:'Cosmetic Dentistry' },
+  { name:'Veneers', rate:800, group:'Cosmetic Dentistry' },
+  { name:'Dentures (Acrylic)', rate:550, group:'Cosmetic Dentistry' },
+  { name:'Dentures (Metal)', rate:750, group:'Cosmetic Dentistry' },
+  { name:'Mini Smile Makeover', rate:1400, group:'Cosmetic Dentistry' },
+  { name:'Sedation / Anaesthesia', rate:299, group:'Cosmetic Dentistry' },
+  { name:'Composite Bonding (per tooth)', rate:99, group:'Cosmetic Dentistry' },
+  { name:'Single Implant, Abutment & Crown', rate:2000, group:'Dental Implants' },
+  { name:'All-On-4 (1 arch)', rate:17000, group:'Dental Implants' },
+  { name:'All-On-4 (2 arches)', rate:25000, group:'Dental Implants' },
+  { name:'Block Graft', rate:1000, group:'Dental Implants' },
+  { name:'Bone Graft', rate:500, group:'Dental Implants' },
+  { name:'Sinus Lift', rate:1000, group:'Dental Implants' },
+  { name:'Anti-wrinkle (1 area)', rate:149, group:'Facial Aesthetics' },
+  { name:'Anti-wrinkle (2 areas)', rate:199, group:'Facial Aesthetics' },
+  { name:'Anti-wrinkle (3 areas)', rate:249, group:'Facial Aesthetics' },
+  { name:'Lip Fillers', rate:299, group:'Facial Aesthetics' },
+  { name:'Plan Check-up', rate:35, group:'Plan Patients' },
+  { name:'Plan Hygiene Appointment', rate:58, group:'Plan Patients' },
+  { name:'Other / custom', rate:0, group:'Other' },
+];
+
 let db          = {};
 let currentDate = new Date();
 let dayState    = { hours:0, t6:0, t3:0, cons:0, bonus:false, indem:true, gdc:true };
-let southendState = { privateFees:0, planCheckups:0, planHygiene:0, labCost:0, ddAmount:0 };
+let southendState = { items:[], labCost:0, ddAmount:0 };
 let lastSyncTime = null;
 let currentClinic = localStorage.getItem(CLINIC_KEY) || null;
 
@@ -686,69 +718,90 @@ function updateDayCalc() {
 // ─────────────────────────────────────────────
 // SOUTHEND DAY LOGGING
 // ─────────────────────────────────────────────
-function shAdj(f, d) {
-  southendState[f] = Math.max(0, southendState[f]+d);
-  document.getElementById(f==='planCheckups'?'v-sh-checkups':'v-sh-hygiene').textContent = southendState[f];
+function shOptionsHtml(selectedName) {
+  const groups = {};
+  SH_TREATMENTS.forEach(t => { (groups[t.group] = groups[t.group] || []).push(t); });
+  return Object.keys(groups).map(g =>
+    `<optgroup label="${g}">` +
+    groups[g].map(t => `<option value="${t.name}"${t.name===selectedName?' selected':''}>${t.name} — £${t.rate.toLocaleString('en-GB')}</option>`).join('') +
+    `</optgroup>`
+  ).join('');
+}
+
+function shAddItem() {
+  const first = SH_TREATMENTS[0];
+  southendState.items.push({ name: first.name, rate: first.rate });
+  renderShItems();
   shCalc();
 }
 
+function shRemoveItem(idx) {
+  southendState.items.splice(idx, 1);
+  renderShItems();
+  shCalc();
+}
+
+function shItemTreatmentChange(idx, name) {
+  const t = SH_TREATMENTS.find(x => x.name === name);
+  southendState.items[idx] = { name, rate: t ? t.rate : 0 };
+  renderShItems();
+  shCalc();
+}
+
+function shItemRateChange(idx, val) {
+  southendState.items[idx].rate = parseFloat(val) || 0;
+  const shareEl = document.getElementById('sh-item-share-'+idx);
+  if (shareEl) shareEl.textContent = '40%: £'+(southendState.items[idx].rate*0.40).toFixed(2);
+  shCalc();
+}
+
+function renderShItems() {
+  const el = document.getElementById('sh-items');
+  if (!southendState.items.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:16px 0;">No treatments added yet</div>';
+    return;
+  }
+  el.innerHTML = southendState.items.map((item, idx) => `
+    <div class="sh-item-row">
+      <select class="sh-item-select" onchange="shItemTreatmentChange(${idx}, this.value)">${shOptionsHtml(item.name)}</select>
+      <div class="sh-item-sub">
+        <span class="row-sub">Rate £</span>
+        <input type="number" min="0" step="0.01" class="num-input sh-item-rate" value="${item.rate}" oninput="shItemRateChange(${idx}, this.value)">
+        <span class="sh-item-share" id="sh-item-share-${idx}">40%: £${(item.rate*0.40).toFixed(2)}</span>
+        <button class="step-btn sh-item-remove" onclick="shRemoveItem(${idx})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
 function calcDaySouthend(s) {
-  const privateIncome = s.privateFees*0.40;
-  const planIncome = (s.planCheckups*35 + s.planHygiene*58)*0.40;
+  const gross = s.items.reduce((sum, i) => sum + (i.rate || 0), 0);
+  const income = gross * 0.40;
   const ddDeduction = s.ddAmount*0.40*0.05;
   const labDeduction = s.labCost*0.50;
-  return { privateIncome, planIncome, ddDeduction, labDeduction, total: privateIncome+planIncome-ddDeduction-labDeduction };
+  return { gross, income, ddDeduction, labDeduction, total: income-ddDeduction-labDeduction };
 }
 
 function shCalc() {
-  southendState.privateFees = parseFloat(document.getElementById('sh-private').value) || 0;
-  southendState.labCost     = parseFloat(document.getElementById('sh-lab').value) || 0;
-  southendState.ddAmount    = parseFloat(document.getElementById('sh-dd').value) || 0;
+  southendState.labCost  = parseFloat(document.getElementById('sh-lab').value) || 0;
+  southendState.ddAmount = parseFloat(document.getElementById('sh-dd').value) || 0;
   const r = calcDaySouthend(southendState);
-  document.getElementById('sh-s-private').textContent = '£'+r.privateIncome.toFixed(2);
-  document.getElementById('sh-s-plan').textContent    = '£'+r.planIncome.toFixed(2);
-  document.getElementById('sh-s-ded').textContent     = '£'+(r.ddDeduction+r.labDeduction).toFixed(2);
-  document.getElementById('sh-s-total').textContent   = '£'+r.total.toFixed(2);
+  document.getElementById('sh-s-gross').textContent  = '£'+r.gross.toFixed(2);
+  document.getElementById('sh-s-income').textContent = '£'+r.income.toFixed(2);
+  document.getElementById('sh-s-ded').textContent    = '£'+(r.ddDeduction+r.labDeduction).toFixed(2);
+  document.getElementById('sh-s-total').textContent  = '£'+r.total.toFixed(2);
 }
 
 function renderTariffRef() {
   const el = document.getElementById('sh-tariff-ref');
   if (!el || el.dataset.rendered) return;
-  const groups = [
-    { title:'General Dentistry', items: [
-      ['Examination','£44'], ['X-Ray','£15'], ['OPG','£249'], ['CBCT','£249'],
-      ['Hygienist (single session)','£74'], ['Airflow','£99'], ['White Filling','from £149'],
-      ['Extraction','from £149'], ['Surgical Extraction','£349'], ['Recement','£149'],
-      ['Root Filling','from £649'], ['Emergency Appointment','£79'],
-      ['Fixed Retainer','£174/arch'], ['Essex Retainer','£149/arch'],
-      ['Vivera Retainer (3 sets)','£549'], ['Night Guard','£159/arch'],
-    ]},
-    { title:'Cosmetic Dentistry', items: [
-      ['Teeth Whitening','from £185'], ['Clear Aligner','from £2,000'],
-      ['Invisalign','from £2,500'], ['Fixed Braces','from £2,500'],
-      ['Crowns','from £800'], ['Bridges (per unit)','from £800'],
-      ['Veneers','from £800'], ['Dentures (Acrylic)','from £550'],
-      ['Dentures (Metal)','from £750'], ['Mini Smile Makeover','from £1,400'],
-      ['Sedation / Anaesthesia','from £299'], ['Composite Bonding','from £99/tooth'],
-    ]},
-    { title:'Dental Implants', items: [
-      ['Single Implant, Abutment & Crown','from £2,000'], ['All-On-4 (1 arch)','from £17,000'],
-      ['All-On-4 (2 arches)','from £25,000'], ['Block Graft','from £1,000'],
-      ['Bone Graft','from £500'], ['Sinus Lift','from £1,000'],
-    ]},
-    { title:'Facial Aesthetics', items: [
-      ['Anti-wrinkle (1 area)','£149'], ['Anti-wrinkle (2 areas)','£199'],
-      ['Anti-wrinkle (3 areas)','£249'], ['Lip Fillers','from £299'],
-    ]},
-    { title:'Plan patients (fixed rate)', items: [
-      ['Check-up','£35'], ['Hygiene appointment','£58'],
-    ]},
-  ];
+  const groups = {};
+  SH_TREATMENTS.forEach(t => { if (t.group==='Other') return; (groups[t.group] = groups[t.group] || []).push(t); });
   let html = '';
-  groups.forEach(g => {
-    html += `<div class="section-title">${g.title}</div>`;
-    g.items.forEach(([name,price]) => {
-      html += `<div class="row"><span class="row-label">${name}</span><span style="font-weight:600;font-size:13px;">${price}</span></div>`;
+  Object.keys(groups).forEach(g => {
+    html += `<div class="section-title">${g}</div>`;
+    groups[g].forEach(t => {
+      html += `<div class="row"><span class="row-label">${t.name}</span><span style="font-weight:600;font-size:13px;">£${t.rate.toLocaleString('en-GB')}</span></div>`;
     });
   });
   el.innerHTML = html;
@@ -770,17 +823,15 @@ function loadDayUI() {
 
   if (currentClinic === 'southend') {
     if (saved) {
-      southendState = { privateFees:saved.privateFees||0, planCheckups:saved.planCheckups||0, planHygiene:saved.planHygiene||0, labCost:saved.labCost||0, ddAmount:saved.ddAmount||0 };
+      southendState = { items: (saved.items||[]).map(i=>({name:i.name, rate:i.rate})), labCost:saved.labCost||0, ddAmount:saved.ddAmount||0 };
       deleteBtn.style.display = 'block';
     } else {
-      southendState = { privateFees:0, planCheckups:0, planHygiene:0, labCost:0, ddAmount:0 };
+      southendState = { items: [], labCost:0, ddAmount:0 };
       deleteBtn.style.display = 'none';
     }
-    document.getElementById('sh-private').value = southendState.privateFees || '';
-    document.getElementById('sh-lab').value     = southendState.labCost || '';
-    document.getElementById('sh-dd').value      = southendState.ddAmount || '';
-    document.getElementById('v-sh-checkups').textContent = southendState.planCheckups;
-    document.getElementById('v-sh-hygiene').textContent  = southendState.planHygiene;
+    document.getElementById('sh-lab').value = southendState.labCost || '';
+    document.getElementById('sh-dd').value  = southendState.ddAmount || '';
+    renderShItems();
     shCalc();
     return;
   }
@@ -812,8 +863,7 @@ async function saveDay() {
     const r = calcDaySouthend(southendState);
     record = {
       key, date: fmtDate(currentDate), dateObj, clinic: 'southend',
-      privateFees: southendState.privateFees, planCheckups: southendState.planCheckups,
-      planHygiene: southendState.planHygiene, labCost: southendState.labCost, ddAmount: southendState.ddAmount,
+      items: southendState.items, labCost: southendState.labCost, ddAmount: southendState.ddAmount,
       total: r.total
     };
   } else {
@@ -905,23 +955,24 @@ function renderWeekHarley() {
 
 function renderWeekSouthend() {
   const days = getWeekDays();
-  let nDays=0, totalPrivate=0, nPlan=0, total=0, html='';
+  let nDays=0, totalGross=0, nItems=0, total=0, html='';
   days.forEach(d => {
     const s = db[dateKey(d)];
     const label = DAYS[d.getDay()].slice(0,3)+' '+d.getDate()+' '+MONTHS[d.getMonth()];
     if (s) {
-      const plan = (s.planCheckups||0)+(s.planHygiene||0);
-      nDays++; totalPrivate+=(s.privateFees||0); nPlan+=plan; total+=s.total;
-      html += `<div class="week-item"><div><div class="week-item-date">${label}</div><div class="week-item-detail">£${(s.privateFees||0).toFixed(2)} private · ${plan} plan</div></div><div class="week-item-amt">£${s.total.toFixed(2)}</div></div>`;
+      const items = s.items||[];
+      const gross = items.reduce((sum,i)=>sum+(i.rate||0),0);
+      nDays++; totalGross+=gross; nItems+=items.length; total+=s.total;
+      html += `<div class="week-item"><div><div class="week-item-date">${label}</div><div class="week-item-detail">${items.length} treatment${items.length===1?'':'s'} · £${gross.toFixed(2)} gross</div></div><div class="week-item-amt">£${s.total.toFixed(2)}</div></div>`;
     } else {
       html += `<div class="week-item empty"><div class="week-item-date">${label}</div><div class="week-item-detail">not logged</div></div>`;
     }
   });
-  document.getElementById('sh-w-days').textContent    = nDays;
-  document.getElementById('sh-w-private').textContent = '£'+totalPrivate.toFixed(2);
-  document.getElementById('sh-w-plan').textContent    = nPlan;
-  document.getElementById('sh-w-total').textContent   = '£'+total.toFixed(2);
-  document.getElementById('sh-week-list').innerHTML   = html || '<div class="empty-state">No days logged this week</div>';
+  document.getElementById('sh-w-days').textContent  = nDays;
+  document.getElementById('sh-w-private').textContent = '£'+totalGross.toFixed(2);
+  document.getElementById('sh-w-plan').textContent  = nItems;
+  document.getElementById('sh-w-total').textContent = '£'+total.toFixed(2);
+  document.getElementById('sh-week-list').innerHTML = html || '<div class="empty-state">No days logged this week</div>';
 }
 
 // ─────────────────────────────────────────────
@@ -1013,19 +1064,28 @@ function copyInvoiceHarley() {
 // SOUTHEND INVOICE
 // ─────────────────────────────────────────────
 function southendTotals(days) {
-  let privateFees=0, checkups=0, hygiene=0, labCost=0, ddAmount=0;
+  let labCost=0, ddAmount=0, grossEarnings=0;
+  const grouped = {};
   days.forEach(d => {
-    privateFees += d.privateFees||0; checkups += d.planCheckups||0; hygiene += d.planHygiene||0;
     labCost += d.labCost||0; ddAmount += d.ddAmount||0;
+    (d.items||[]).forEach(item => {
+      const rate = item.rate||0;
+      grossEarnings += rate;
+      if (!grouped[item.name]) grouped[item.name] = { count:0, gross:0 };
+      grouped[item.name].count++;
+      grouped[item.name].gross += rate;
+    });
   });
-  const planFeesGross = checkups*35 + hygiene*58;
-  const grossEarnings = privateFees + planFeesGross;
+  const knownNames = SH_TREATMENTS.map(t => t.name).filter(n => grouped[n]);
+  const extraNames = Object.keys(grouped).filter(n => !knownNames.includes(n));
+  const treatmentLines = [...knownNames, ...extraNames].map(name => ({
+    label: `${name} × ${grouped[name].count} — £${grouped[name].gross.toFixed(2)} gross`,
+    amt: grouped[name].gross*0.40, pos:true,
+  }));
   return {
-    privateFees, checkups, hygiene, labCost, ddAmount, planFeesGross, grossEarnings,
+    labCost, ddAmount, grossEarnings,
     lines: [
-      { label:`Private fees — 40% of £${privateFees.toFixed(2)}`,                 amt: privateFees*0.40,        pos:true  },
-      { label:`Plan check-ups — ${checkups} × £35 × 40%`,                        amt: checkups*35*0.40,        pos:true  },
-      { label:`Plan hygiene — ${hygiene} × £58 × 40%`,                           amt: hygiene*58*0.40,         pos:true  },
+      ...treatmentLines,
       { label:`3rd-party Direct Debit subsidy — 5%`,                             amt: ddAmount*0.40*0.05,      pos:false },
       { label:`Lab / rechargeable costs — 50%`,                                  amt: labCost*0.50,            pos:false },
       { label:`Practice marketing fee — 2.5% of £${grossEarnings.toFixed(2)}`,   amt: grossEarnings*0.025,     pos:false },
@@ -1070,8 +1130,8 @@ function renderTax() {
   allDays.forEach(d => {
     let gross, expenses;
     if ((d.clinic||'harley') === 'southend') {
-      const planFeesGross = (d.planCheckups||0)*35 + (d.planHygiene||0)*58;
-      gross = (d.privateFees||0)*0.40 + planFeesGross*0.40;
+      const itemsGross = (d.items||[]).reduce((s,i)=>s+(i.rate||0),0);
+      gross = itemsGross*0.40;
       expenses = (d.labCost||0)*0.50 + (d.ddAmount||0)*0.40*0.05;
     } else {
       gross = (d.hours*11)+(d.t6*17)+(d.t3*7)-(d.cons*5)+(d.bonus?30:0)+(d.indem?2.5:0)+(d.gdc?2.5:0);

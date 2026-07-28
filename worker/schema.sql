@@ -12,9 +12,7 @@ CREATE TABLE IF NOT EXISTS clinic_days (
   gdc       INTEGER NOT NULL DEFAULT 0,
   start_time TEXT,
   end_time   TEXT,
-  private_fees  REAL NOT NULL DEFAULT 0,
-  plan_checkups INTEGER NOT NULL DEFAULT 0,
-  plan_hygiene  INTEGER NOT NULL DEFAULT 0,
+  items_json    TEXT NOT NULL DEFAULT '[]',
   lab_cost      REAL NOT NULL DEFAULT 0,
   dd_amount     REAL NOT NULL DEFAULT 0,
   total     REAL NOT NULL DEFAULT 0
