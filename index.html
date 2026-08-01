@@ -758,9 +758,16 @@ function shItemRateChange(idx, val) {
 }
 
 function shItemQtyChange(idx, el) {
+  const parsed = parseInt(el.value, 10);
+  southendState.items[idx].qty = Math.max(1, isNaN(parsed) ? 1 : parsed);
+  updateShItemShare(idx);
+  shCalc();
+}
+
+function shItemQtyBlur(idx, el) {
   const qty = Math.max(1, parseInt(el.value, 10) || 1);
   southendState.items[idx].qty = qty;
-  if (String(qty) !== el.value) el.value = qty;
+  el.value = qty;
   updateShItemShare(idx);
   shCalc();
 }
@@ -789,7 +796,7 @@ function renderShItems() {
         <span class="sh-item-label">Rate £</span>
         <input type="number" min="0" step="0.01" class="num-input sh-item-rate" value="${item.rate}" oninput="shItemRateChange(${idx}, this.value)">
         <span class="sh-item-label">Qty</span>
-        <input type="number" min="1" step="1" class="num-input sh-item-qty" value="${qty}" oninput="shItemQtyChange(${idx}, this)">
+        <input type="number" min="1" step="1" class="num-input sh-item-qty" value="${qty}" oninput="shItemQtyChange(${idx}, this)" onblur="shItemQtyBlur(${idx}, this)">
         <button class="step-btn sh-item-remove" onclick="shRemoveItem(${idx})">✕</button>
       </div>
       <div class="sh-item-share" id="sh-item-share-${idx}">Gross £${lineGross.toFixed(2)} · 40%: £${(lineGross*0.40).toFixed(2)}</div>
