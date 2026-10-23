@@ -1095,14 +1095,16 @@ function copyInvoiceHarley() {
 // SOUTHEND INVOICE
 // ─────────────────────────────────────────────
 function southendTotals(days) {
-  let labCost=0, ddAmount=0, grossEarnings=0;
+  let labCost=0, ddAmount=0, grossEarnings=0, privateGrossEarnings=0;
   const grouped = {};
+  const planNames = new Set(SH_TREATMENTS.filter(t => t.group === 'Plan Patients').map(t => t.name));
   days.forEach(d => {
     labCost += d.labCost||0; ddAmount += d.ddAmount||0;
     (d.items||[]).forEach(item => {
       const qty = item.qty||1;
       const lineGross = (item.rate||0) * qty;
       grossEarnings += lineGross;
+      if (!planNames.has(item.name)) privateGrossEarnings += lineGross;
       if (!grouped[item.name]) grouped[item.name] = { count:0, gross:0 };
       grouped[item.name].count += qty;
       grouped[item.name].gross += lineGross;
@@ -1120,7 +1122,7 @@ function southendTotals(days) {
       ...treatmentLines,
       { label:`3rd-party Direct Debit subsidy — 5%`,                             amt: ddAmount*0.40*0.05,      pos:false },
       { label:`Lab / rechargeable costs — 50%`,                                  amt: labCost*0.50,            pos:false },
-      { label:`Practice marketing fee — 2.5% of £${grossEarnings.toFixed(2)}`,   amt: grossEarnings*0.025,     pos:false },
+      { label:`Practice marketing fee — 2.5% of £${privateGrossEarnings.toFixed(2)} private income`, amt: privateGrossEarnings*0.025, pos:false },
     ].filter(l => l.amt > 0.004),
   };
 }
